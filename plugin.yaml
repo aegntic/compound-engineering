@@ -1,0 +1,29 @@
+name: compound-engineering
+version: 5.0.0
+description:
+  lead: Portable AI-powered development tools for any coding agent.
+  suffix: spanning code review, research, design, and workflow automation. Platform-agnostic skills, agents, and commands for Claude Code, Copilot, and OpenCode.
+author:
+  name: aegntic
+  url: https://github.com/aegntic
+homepage: https://github.com/aegntic/compound-engineering
+repository: https://github.com/aegntic/compound-engineering
+license: MIT
+keywords:
+  - ai-powered
+  - compound-engineering
+  - workflow-automation
+  - code-review
+  - rust
+  - laravel
+  - vue
+  - nestjs
+  - python
+  - typescript
+  - knowledge-management
+  - agent-browser
+  - browser-automation
+mcpServers:
+  context7:
+    type: http
+    url: https://mcp.context7.com/mcp

@@ -1,0 +1,874 @@
+---
+name: workflows:work
+description: >-
+  Execute work plans while maintaining WHY tracing from problem narrative
+  through user story to implementation. Grounds every subagent in purpose.
+argument-hint: '[plan file, specification, or todo file path] [--review-mode bulk|inline|both]'
+---
+
+# Work Plan Execution Command
+
+Execute a work plan while maintaining WHY tracing from problem narrative through implementation.
+
+**Ralph-first execution:** When the resolved TDD contract selects Ralph-driven execution, `/workflows:work` is the canonical Ralph red-green-refactor path. `/compound-engineering:ralph-loop` and `/compound-engineering:cancel-ralph` are operational helpers for that path, not a detached alternative workflow.
+
+## Introduction
+
+This command takes a work document (plan, specification, or todo file) and executes it systematically using a **subagent orchestration model**. The orchestrator (this conversation) decomposes the plan into scoped chunks and delegates each to a focused subagent. Each subagent follows a standardized 4-phase protocol (understand, implement, self-review, report) defined in the execution agent prompt template.
+
+**WHY-grounded execution:** Every subagent receives the plan's WHY context -- the problem narrative, user story, architectural context, the architecture handoff contract, and which success criterion their specific task serves. This prevents implementation drift where technically correct code fails to deliver the user's actual need. The orchestrator is the guardian of WHY: it extracts purpose from the plan, threads it through every task prompt, and validates that the combined output delivers the stated user story.
+
+### Review Mode
+
+This command supports a `--review-mode` argument that controls when code review happens:
+
+- **`bulk`** (default) -- Review happens after ALL tasks complete, using `/workflows:review`. This is the standard behavior and is fastest for most work.
+- **`inline`** -- After each task, a lightweight two-stage review (spec compliance then code quality) runs automatically. Catches spec drift early but adds 2-4 extra subagent calls per task.
+- **`both`** -- Inline review per task AND comprehensive `/workflows:review` at the end. Maximum quality assurance.
+
+If no `--review-mode` is specified, check `compound-engineering.local.md` for a `review_mode` setting. If not found there either, default to `bulk`.
+
+## Input Document
+
+<input_document> #$ARGUMENTS </input_document>
+
+## Execution Workflow
+
+### Phase 1: Quick Start
+
+1. **Read Plan and Extract WHY + Guardrail Context**
+
+   - Read the work document completely
+   - **Extract WHY artifacts** from the plan (these ground everything that follows):
+     - **Problem Narrative** -- why this work exists, what pain it solves
+     - **User Story** -- who benefits and what outcome they get
+     - **Architectural Context** -- how the solution fits in the system
+     - **Success Criteria** -- measurable conditions that define "done"
+     - **Phase-to-story tracing** -- each phase's "Serves:" line showing what user story aspect it delivers
+     - **Constitution alignment** -- relevant principles, required approvals, and any approved waivers
+     - **`tdd` frontmatter + `## TDD & Evidence Contract`** -- resolve the effective TDD contract using `commands/workflows/references/tdd-evidence-contract.md` (plan overrides local, `inherit` falls back, and no-local-config defaults to Ralph-driven `red-green-refactor` with unit + e2e evidence required)
+   - Check for `handoff:` frontmatter in the plan. If present, verify all flags are `true` (problem_narrative, user_story, architectural_context, success_criteria). If any are `false`, warn the user that WHY context is incomplete and suggest running `/workflows:brainstorm` or `/workflows:plan` first.
+   - If the resolved contract weakens Ralph/unit+e2e without a justified exception in the plan, stop and ask for the plan contract to be corrected before execution
+   - If `docs/constitution.md` exists, read it and extract the active constitution version, applicable principles, execution baselines, and approval rules. If the plan lists `constitution_waivers`, honor only those explicit exceptions.
+   - If the plan has a `brainstorm_ref:` path, read that brainstorm document too for richer WHY context
+   - If the plan has an `architecture_ref:` path or `## Related Artifacts` entry, read that `docs/architecture/` artifact and extract the deletion test, interfaces as test surfaces, seams, adapters, contracts, deepening candidates, and downstream work/review guidance
+   - If no architecture artifact is recorded, assemble an explicit architecture handoff contract from the plan's Architectural Context, Key Decisions, Constitution Alignment, brainstorm context, and execution constraints. Tell the user this is a fallback and recommend `/workflows:architecture` if boundaries are still unsettled.
+   - Review any other references or links provided in the plan
+   - If the constitution requires explicit approval for any part of the planned work (for example, risky writes, schema changes, auth changes, or scope expansions), surface that before execution starts
+   - If anything is unclear or ambiguous, ask clarifying questions now
+   - Get user approval to proceed
+   - **Do not skip this** - better to ask questions now than build the wrong thing
+
+2. **Setup Environment**
+
+   First, check the current branch:
+
+   ```bash
+   current_branch=$(git branch --show-current)
+   default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+
+   # Fallback if remote HEAD isn't set
+   if [ -z "$default_branch" ]; then
+     default_branch=$(git rev-parse --verify origin/main >/dev/null 2>&1 && echo "main" || echo "master")
+   fi
+   ```
+
+   **If already on a feature branch** (not the default branch):
+   - Ask: "Continue working on `[current_branch]`, or create a new branch?"
+   - If continuing, proceed to step 3
+   - If creating new, follow Option A or B below
+
+   **If on the default branch**, choose how to proceed:
+
+   **Option A: Create a new branch**
+   ```bash
+   git pull origin [default_branch]
+   git checkout -b feature-branch-name
+   ```
+   Use a meaningful name based on the work (e.g., `feat/user-authentication`, `fix/email-validation`).
+
+   **Option B: Use a worktree (recommended for parallel development)**
+   ```bash
+   skill: git-worktree
+   # The skill will create a new branch from the default branch in an isolated worktree
+   ```
+
+   **Option C: Continue on the default branch**
+   - Requires explicit user confirmation
+   - Only proceed after user explicitly says "yes, commit to [default_branch]"
+   - Never commit directly to the default branch without explicit permission
+
+   **Recommendation**: Use worktree if:
+   - You want to work on multiple features simultaneously
+   - You want to keep the default branch clean while experimenting
+   - You plan to switch between branches frequently
+
+3. **Preview Task Breakdown**
+   - Mentally identify the major tasks from the plan
+   - Note any questions about dependencies or scope
+   - The formal task decomposition happens in Phase 2 Step 4 (STATE.md), which is the persistent record of progress
+   - TodoWrite can be used for in-conversation progress tracking if helpful, but STATE.md is the source of truth
+
+### Phase 2: Orchestrated Execution
+
+Phase 2 is where the orchestrator (this conversation) decomposes the plan into scoped chunks and delegates each to a focused subagent. The orchestrator does NOT implement code itself -- it decomposes, delegates, records, and routes.
+
+#### Step 1: Validate Plan Readiness
+
+Before executing, validate four things: **structural readiness** (tasks are granular and testable), **WHY readiness** (the plan carries purpose context), **TDD readiness** (the execution contract is explicit and enforceable), and **guardrail readiness** (repo-wide rules are visible and actionable).
+
+**Structural readiness** -- each implementation task should have:
+
+- **Task description** -- what needs to be done
+- **Files to create/modify** -- specific file paths
+- **Success criteria** -- checkboxes that define "done"
+- **Test command** -- how to verify the task works
+- **Dependencies** -- which other tasks must complete first
+
+**Guardrail readiness** -- when the project has `docs/constitution.md`, the plan should make repo-wide rules visible:
+
+- **Constitution alignment** -- relevant principles and baselines are surfaced
+- **Constitution version** -- recorded when a constitution exists
+- **Constitution waivers** -- explicit and limited; empty by default
+- **Required approvals** -- called out before work begins
+
+**TDD readiness** -- the plan and local defaults must resolve to one clear execution contract:
+
+- **`tdd` frontmatter present** -- includes precedence, mode, loop, evidence, and exceptions
+- **`## TDD & Evidence Contract` present** -- states the resolved execution path in plain language
+- **Effective mode resolved** -- Ralph-driven by default unless the plan explicitly approves a standard-mode exception
+- **Required evidence resolved** -- unit + e2e by default, or justified replacement evidence when explicitly waived
+- **Report contract visible** -- Ralph-driven tasks must emit stable red, green, and post-refactor green evidence blocks
+
+**WHY readiness** -- the plan should have:
+
+- **Problem Narrative** -- present and non-empty
+- **User Story** -- present with clear "As a... I want... So that..."
+- **Architectural Context** -- present, describing system fit
+- **Success Criteria** -- present at plan level (not just task level)
+- **Phase tracing** -- each phase has a "Serves:" line connecting it to the user story
+
+If the plan lacks structural details, or if no architecture artifact / handoff contract can explain the boundaries, refuse to proceed and suggest running `/workflows:architecture` first if the boundaries are still fuzzy, then `/deepen-plan`, or manually breaking down the plan.
+
+If the plan lacks the `tdd` block or `## TDD & Evidence Contract`, or if the resolved contract is ambiguous, refuse to proceed and suggest `/workflows:plan` or `/deepen-plan` to repair the execution contract before spawning subagents.
+
+If the plan lacks WHY artifacts, the orchestrator should **construct minimal WHY context** before proceeding:
+1. Ask the user: "This plan doesn't include a problem narrative or user story. In one sentence, what problem are we solving and for whom?"
+2. Infer success criteria from the task-level criteria
+3. Infer architectural context from the file paths and technologies mentioned
+4. Record these in STATE.md (see Step 3) so they're available for all tasks
+
+#### Step 2: Check for Resumable Session
+
+Before creating a new session, check for existing incomplete sessions for the same plan:
+
+```bash
+ls docs/execution-sessions/work-*/STATE.md 2>/dev/null
+```
+
+If a previous session exists for the same plan file and has `status: in_progress`:
+
+- Ask the user: "Found incomplete session `[session_id]` for this plan. Resume where you left off, or start fresh?"
+- **If resume**: Read STATE.md, load the WHY Context section plus the Architecture Handoff section, skip completed tasks, load the learnings brief, and continue from `current_task`
+- **If fresh**: Archive the old session directory (rename with `-archived` suffix), then start a new session
+
+If no resumable session exists, proceed to Step 3.
+
+#### Step 3: Initialize Execution Session
+
+Create a persistent execution session to track progress:
+
+```bash
+SESSION_ID="work-$(date +%Y-%m-%d-%H%M%S)"
+mkdir -p docs/execution-sessions/${SESSION_ID}
+```
+
+Create a `STATE.md` file in the session directory:
+
+```markdown
+---
+plan_file: [path to plan]
+brainstorm_ref: [path to brainstorm, if available]
+started: [ISO timestamp]
+status: in_progress
+current_task: 0
+total_tasks: [count]
+session_id: [SESSION_ID]
+---
+
+## WHY Context
+
+### Problem Narrative
+[Extracted from plan -- why this work exists]
+
+### User Story
+[Extracted from plan -- who benefits and what outcome]
+
+### Architectural Context
+[Extracted from plan -- how this fits in the system]
+
+### Success Criteria
+[Extracted from plan -- measurable conditions for "done"]
+
+### TDD Contract
+- Effective mode: [Ralph-driven TDD | Standard implementation with approved exception]
+- Effective loop: [Failing tests first -> minimal implementation -> refactor -> post-refactor rerun | Implementation-first]
+- Required evidence: [Unit command/result], [E2E command/result], [Replacement evidence for any approved exception]
+- Exceptions: [None, or explicit approved deviations from Ralph/unit+e2e]
+
+### Constitution Context
+[Relevant principles, baselines, approvals, and waivers extracted from plan and docs/constitution.md]
+
+### Architecture Handoff
+- Artifact: [docs/architecture/... path or "plan-derived handoff"]
+- Deepening candidates to preserve: [list]
+- Deletion test: [what stays concrete vs what may be abstracted later]
+- Interfaces as test surfaces: [behavioral contracts]
+- Seams / adapters / contracts: [boundaries this execution must honor]
+- Review guidance: [what `/workflows:review` must verify later]
+
+## Task Status
+| # | Task | Serves | Status | Attempts | Session File |
+|---|------|--------|--------|----------|--------------|
+| 1 | [task name] | [which user story aspect] | pending | -- | -- |
+| 2 | [task name] | [which user story aspect] | pending | -- | -- |
+...
+
+## Learnings Brief
+_No learnings yet._
+```
+
+#### Step 4: Decompose Plan into Execution Chunks
+
+The orchestrator parses the plan and creates a list of execution chunks. Each chunk is a self-contained unit of work. The orchestrator does the heavy lifting here:
+
+- **Break large phases** into smaller tasks if needed (each task should be completable in one subagent session)
+- **Preserve WHY tracing** -- when splitting a phase, each resulting task inherits the parent phase's "Serves:" line. Never create an orphan task with no connection to the user story.
+- **Identify file dependencies** between tasks (Task B modifies a file created by Task A)
+- **Determine parallelizable tasks** -- tasks with non-overlapping file sets can run simultaneously
+- **Ensure each chunk has clear success criteria** -- if the plan already defines them, use them directly; otherwise, the orchestrator must create them
+- **Map each task to its purpose** -- record which success criterion or user story aspect each task delivers (this goes in STATE.md's "Serves" column)
+
+If the plan already has well-defined tasks with success criteria, use them directly. If not, the orchestrator must create them before proceeding.
+
+#### Step 5: Execute Task Loop
+
+For each task (or parallel batch of tasks), follow this cycle:
+
+##### a. Build Scoped Prompt
+
+For each task, the orchestrator constructs a focused prompt by loading the **execution agent prompt template** from `commands/workflows/references/execution-agent-prompt.md` and filling in the context blocks.
+
+Before building `scoped_prompt`, apply the shared `Reference Template Loading` protocol in `commands/workflows/references/orchestration-protocol.md` to `execution-agent-prompt.md`. Fill the placeholders from the loaded template and do not reconstruct the prompt from memory.
+
+- **{{TASK_NAME}}** and **{{TASK_DESCRIPTION}}** -- from the plan
+- **{{FILE_LIST}}** -- files to create/modify from the plan
+- **{{SUCCESS_CRITERIA}}** -- checkboxes that define "done"
+- **{{TEST_COMMAND}}** -- how to verify the task works
+- **{{COMPLETED_DEPENDENCIES}}** -- list of already-completed tasks this depends on
+- **{{WHY_CONTEXT}}** -- the purpose grounding block (constructed by orchestrator):
+  ```
+  ## Why This Task Exists
+  **Problem:** [problem narrative from plan -- 1-2 sentences]
+  **User Story:** [user story from plan]
+  **This task serves:** [the "Serves:" line from this task's parent phase -- which user story aspect or success criterion this delivers]
+  **Overall success criteria:** [plan-level success criteria list]
+  **Guardrails:** [relevant constitution principles, approval rules, and approved waivers]
+  ```
+- **{{ARCHITECTURAL_CONTEXT}}** -- from the plan's Architectural Context section, filtered to what's relevant for this task's files and domain
+- **{{ARCHITECTURE_HANDOFF}}** -- from the `docs/architecture/` artifact or explicit plan-derived handoff contract; include deletion-test decisions, interfaces as test surfaces, seams, adapters, contracts, and downstream review guidance relevant to this task
+- **{{LEARNINGS_BRIEF}}** -- from previous tasks, filtered by domain relevance (only include backend learnings for backend tasks, frontend learnings for frontend tasks, etc.)
+- **{{PROJECT_CONVENTIONS}}** -- from CLAUDE.md plus relevant constitution baselines
+- **{{TDD_CONTRACT}}** -- the resolved execution contract: effective mode, Ralph/default loop, required unit/e2e evidence, and any explicit exceptions
+- **{{TDD_SECTION}}** -- if the resolved effective mode is Ralph-driven, include the Ralph/TDD Implementation Section from the template; otherwise include the Standard Implementation Section. Do not treat Ralph as an adjacent side command when it is the resolved default.
+
+The execution agent template instructs each subagent to follow a 4-phase protocol:
+1. **Understand** -- review requirements, surface ambiguities, state assumptions before coding
+2. **Implement** -- follow the resolved Ralph/default execution mode, retry on failure (up to 3 attempts)
+3. **Self-review** -- check completeness, quality, discipline, testing, and evidence
+4. **Report** -- return a structured execution report with stable red, green, and post-refactor green evidence when Ralph-driven
+
+##### b. Spawn Subagent
+
+Delegate the task to a focused subagent:
+
+```
+Task(general-purpose, prompt=scoped_prompt)
+```
+
+The subagent prompt is constructed from the loaded execution agent template (`commands/workflows/references/execution-agent-prompt.md`). The template already includes instructions for the 4-phase protocol (understand, implement, self-review, report). The orchestrator fills in the context blocks and passes the result:
+
+1. Read referenced files and understand existing patterns
+2. Follow the resolved Ralph/default execution contract
+3. Capture stable red, green, and post-refactor green evidence when Ralph-driven
+4. Run the test command
+5. If tests fail: analyze failure, fix, and retry (up to 3 internal attempts)
+6. Return a structured execution report containing:
+   - Summary of what was implemented
+   - Files created/modified (with paths)
+   - Problems encountered and how they were fixed
+   - Patterns discovered (naming conventions, architectural patterns, etc.)
+   - TDD evidence (Red, Green, Post-Refactor Green) when Ralph-driven
+   - Final test results (pass/fail)
+   - Attempt count
+
+**For parallel tasks**: Spawn multiple subagents simultaneously. Only parallelize tasks with non-overlapping file sets. Before parallelizing, verify file sets do not overlap.
+
+**Example scoped prompt:**
+
+```
+You are implementing Task 3 of a feature plan. Here is your scoped context:
+
+## Why This Task Exists
+**Problem:** Users currently cannot authenticate, forcing manual session management that's error-prone and insecure.
+**User Story:** As a user, I want to log in with my credentials so that I can access my personalized dashboard securely.
+**This task serves:** "Secure authentication flow" -- implementing the core token generation that enables the login experience.
+**Overall success criteria:**
+- Users can log in and receive a JWT token
+- Invalid credentials are rejected with clear error messages
+- Tokens expire after the configured TTL
+
+## Task
+Create the UserAuthService with JWT token generation and validation.
+
+## Files to Create/Modify
+- Create: `src/services/UserAuthService.ts`
+- Create: `tests/UserAuthService.test.ts`
+- Modify: `src/app.ts` (register service)
+
+## Success Criteria
+- [ ] UserAuthService instantiates correctly
+- [ ] authenticate() returns JWT token for valid credentials
+- [ ] authenticate() throws AuthenticationError for invalid credentials
+- [ ] Token validation works for valid and expired tokens
+
+## Test Command
+npm test -- --filter UserAuthService
+
+## Architectural Context
+JWT-based stateless auth. Tokens issued by UserAuthService, validated by middleware (Task 4). No server-side session storage.
+
+## TDD Execution Contract
+- Effective mode: Ralph-driven TDD
+- Effective loop: failing tests first -> minimal implementation -> refactor -> post-refactor rerun
+- Required evidence: unit command/result + e2e command/result
+- Exceptions: none
+
+## Conventions
+- Use dependency injection pattern
+- Variables are camelCase
+- Type annotations on all parameters and return types
+
+## Learnings from Previous Tasks
+- [backend] Use jest.mock() for module mocking
+- [backend] Factory pattern: createUser() helper not new User()
+- [testing] Use expect().toThrow() for error assertions
+
+## Instructions
+1. Read the referenced files and understand existing patterns
+2. Follow the Ralph-driven TDD contract: RED first, GREEN second, REFACTOR third, post-refactor rerun fourth
+3. Capture stable report evidence for Red, Green, and Post-Refactor Green
+4. Run the test command
+5. If tests fail: analyze, fix, retry (up to 3 attempts)
+6. Return a structured report: summary, files changed, problems encountered and fixes, patterns discovered, TDD evidence, test results, attempt count
+```
+
+##### c. Process Subagent Results
+
+When the subagent returns, the orchestrator processes the results:
+
+**0. Validate the execution contract evidence** -- audit the report against `commands/workflows/references/tdd-evidence-contract.md`. If a Ralph-driven task is missing stable `Red`, `Green`, and `Post-Refactor Green` evidence blocks, treat the report as incomplete and send it back for correction before marking the task complete.
+
+**1. Write session file** to `docs/execution-sessions/${SESSION_ID}/task-{nn}-{slug}.md`:
+
+```markdown
+---
+task: "[task name]"
+task_number: [n]
+serves: "[which user story aspect / success criterion this task delivers]"
+status: [completed|failed]
+attempt_count: [n]
+domains: [backend, frontend, testing, database, etc.]
+plan_file: [path]
+session_id: [SESSION_ID]
+---
+
+## What Was Implemented
+[From subagent report]
+
+## Files Changed
+- `path/to/file.php` -- created/modified
+
+## Problems Encountered
+### Problem 1: [title]
+- **Error:** [exact error message]
+- **Root cause:** [analysis]
+- **Fix:** [what was done]
+
+### Problem 2: ...
+
+## Patterns Discovered
+- [pattern 1]
+- [pattern 2]
+
+## TDD Evidence
+[Mirror the exact Ralph evidence block from `commands/workflows/references/tdd-evidence-contract.md`. Preserve the `Red`, `Green`, and `Post-Refactor Green` headings with their command/result/evidence fields.]
+
+## Test Results
+- Command: `[test command]`
+- Result: PASS/FAIL
+- Attempts: [n]
+```
+
+**2. Inline Review (when `--review-mode inline` or `--review-mode both`)**
+
+   If the `--review-mode` argument is `inline` or `both`, perform a two-stage inline review before proceeding to the next task. If `--review-mode` is `bulk` (the default), skip this step.
+
+   **Stage 1: Spec Compliance Review**
+
+   Apply the shared `Reference Template Loading` protocol from `commands/workflows/references/orchestration-protocol.md`, substituting `spec-review-prompt.md`. If the template cannot be loaded and quoted, stop the inline review loop and report the missing template instead of improvising. Then fill in:
+   - `{{TASK_REQUIREMENTS}}` -- the task description and success criteria
+   - `{{SUCCESS_CRITERIA}}` -- the success criteria checkboxes
+   - `{{IMPLEMENTER_REPORT}}` -- the execution report from the subagent
+   - `{{TASK_SERVES}}` -- what user story aspect this task delivers (from the task's "Serves:" line)
+
+   Spawn a spec reviewer subagent:
+   ```
+   Task(general-purpose, prompt=filled_spec_review_prompt)
+   ```
+
+   The spec reviewer should check not just checkbox compliance but whether the implementation actually delivers on the purpose stated in "Serves:". A task can pass all checkboxes but miss the intent.
+
+   - If **PASS**: proceed to Stage 2
+   - If **FAIL**: spawn a new execution subagent with the specific issues to fix, then re-run the spec reviewer (max 2 fix-review cycles). If still failing after 2 cycles, log the issues and ask the user how to proceed.
+
+   **Stage 2: Code Quality Review** (only after spec compliance passes)
+
+   Apply the shared `Reference Template Loading` protocol from `commands/workflows/references/orchestration-protocol.md`, substituting `quality-review-prompt.md`. If the template cannot be loaded and quoted, stop the inline review loop and report the missing template instead of improvising. Then fill in:
+   - `{{IMPLEMENTER_REPORT}}` -- the execution report
+   - `{{FILES_CHANGED}}` -- list of files from the report
+
+   Spawn a quality reviewer subagent:
+   ```
+   Task(general-purpose, prompt=filled_quality_review_prompt)
+   ```
+
+   - If **PASS**: proceed to next steps
+   - If **FAIL** with Critical issues: spawn fix subagent, re-review (max 2 cycles)
+   - If **FAIL** with only Important/Minor issues: log them for the orchestrator's attention but proceed to next task (these will also be caught by `/workflows:review` if run later)
+
+   **Note:** Inline review is a lightweight per-task check. It does NOT replace the comprehensive `/workflows:review` multi-agent review. When `--review-mode both` is active, inline review runs per-task AND `/workflows:review` runs after all tasks complete.
+
+**3. Update STATE.md** -- mark the task status, increment `current_task`, update the task status table
+
+**4. Update learnings brief** -- add new learnings from this task, tagged by domain, deduplicated against existing learnings
+
+**5. Update plan file** -- check off completed items (`[ ]` to `[x]`) in the original plan document
+
+**6. Regression guard** -- run test commands from ALL previously completed tasks. If any regress:
+   - Log the regression in the current task's session file
+   - Spawn a fix subagent with context about what broke and why
+   - Do not proceed to the next task until the regression is fixed
+
+**7. Incremental commit** if appropriate (logical unit complete, tests pass):
+
+   | Commit when... | Don't commit when... |
+   |----------------|---------------------|
+   | Logical unit complete (model, service, component) | Small part of a larger unit |
+   | Tests pass + meaningful progress | Tests failing |
+   | About to switch contexts (backend to frontend) | Purely scaffolding with no behavior |
+   | About to attempt risky/uncertain changes | Would need a "WIP" commit message |
+
+   **Heuristic:** "Can I write a commit message that describes a complete, valuable change? If yes, commit. If the message would be 'WIP' or 'partial X', wait."
+
+   ```bash
+   # 1. Verify tests pass (use project's test command)
+   # 2. Stage only files related to this logical unit (not `git add .`)
+   git add <files related to this logical unit>
+   # 3. Commit with conventional message
+   git commit -m "feat(scope): description of this unit"
+   ```
+
+   **Note:** Incremental commits use clean conventional messages without attribution footers. The final Phase 4 commit/PR includes the full attribution.
+
+##### d. Handle Failures
+
+If a subagent fails after its internal retries:
+
+1. **Reframe**: Can the task be broken down differently? Try spawning a new subagent with a different approach or smaller scope.
+2. **Ask user**: Use AskUserQuestion -- "Task [name] failed after 3 attempts. [error summary]. How should I proceed?"
+   - Options: "Retry with different approach", "Skip and continue", "Stop pipeline", "I'll fix it manually"
+3. **Skip and continue**: Mark task as `skipped` in STATE.md. Note it as a blocker for any dependent tasks. Dependent tasks are also skipped automatically.
+4. **Stop pipeline**: Save all state to STATE.md with `status: paused`, present a summary of what was completed and what remains.
+
+### Phase 3: Quality Check
+
+1. **Run Core Quality Checks**
+
+   Always run before submitting:
+
+   ```bash
+   # Run full test suite (use project's test command)
+   # Detect and run: npm test, pytest, cargo test, phpunit, go test, etc.
+
+   # Run linting (per CLAUDE.md)
+   # Use project-specific linter: eslint, ruff, clippy, pint, etc.
+   ```
+
+2. **Purpose Validation** (REQUIRED)
+
+   Before mechanical quality checks, validate that the combined work delivers on the WHY:
+
+    - **User story delivered?** -- Review the user story from STATE.md. Can a user actually achieve the stated outcome with what was built? If any success criterion is unmet or any task was skipped, note the gap.
+    - **Architectural integrity?** -- Does the implementation match the architectural context from the plan? Flag any deviations (e.g., plan said "stateless JWT" but implementation uses server sessions).
+     - **Constitution honored?** -- Does the implementation respect the constitution baselines and approval rules captured in STATE.md? Flag any unwaived violations.
+     - **Ralph evidence complete?** -- For Ralph-driven tasks, does every session file include Red, Green, and Post-Refactor Green evidence aligned to the resolved unit/e2e contract or an explicitly approved exception?
+     - **No orphan code** -- Is there any implemented code that doesn't trace back to the user story or success criteria? This may indicate scope creep during execution.
+
+   If purpose validation reveals gaps, present them to the user before proceeding to PR.
+
+3. **Consider Reviewer Agents** (Optional)
+
+   Use for complex, risky, or large changes. Read agents from `compound-engineering.local.md` frontmatter (`review_agents`). If no settings file, invoke the `setup` skill to create one.
+
+    Before dispatching any named reviewer agent from `review_agents`, apply the shared `Named Agent Dispatch` protocol in `commands/workflows/references/orchestration-protocol.md`.
+
+    Run configured agents in parallel with Task tool. **Pass the WHY context (problem narrative, user story, success criteria) to reviewer agents** so they can evaluate fitness for purpose, not just code quality. Present findings and address critical issues.
+
+4. **Final Validation**
+   - All tasks in STATE.md marked `completed` (or explicitly `skipped` with user approval)
+   - All tests pass (including regression tests from every completed task)
+   - Linting passes
+   - Code follows existing patterns
+   - Purpose validation passed (user story deliverable, architecture intact)
+   - Constitution validation passed (or waivers are explicit and approved)
+   - Figma designs match (if applicable)
+   - No console errors or warnings
+
+4. **Prepare Operational Validation Plan** (REQUIRED)
+   - Add a `## Post-Deploy Monitoring & Validation` section to the PR description for every change.
+   - Include concrete:
+     - Log queries/search terms
+     - Metrics or dashboards to watch
+     - Expected healthy signals
+     - Failure signals and rollback/mitigation trigger
+     - Validation window and owner
+   - If there is truly no production/runtime impact, still include the section with: `No additional operational monitoring required` and a one-line reason.
+
+### Phase 4: Ship It
+
+Use the `finishing-branch` skill for structured branch completion. This skill handles final verification, commit, merge/PR options, worktree cleanup, and plan status updates.
+
+```
+skill: finishing-branch
+```
+
+If the `finishing-branch` skill is not available, follow the manual steps below:
+
+1. **Create Commit**
+
+   ```bash
+   git add .
+   git status  # Review what's being committed
+   git diff --staged  # Check the changes
+
+   # Commit with conventional format
+   git commit -m "$(cat <<'EOF'
+   feat(scope): description of what and why
+
+   Brief explanation if needed.
+   EOF
+   )"
+   ```
+
+2. **Capture and Upload Screenshots for UI Changes** (REQUIRED for any UI work)
+
+   For **any** design changes, new views, or UI modifications, you MUST capture and upload screenshots:
+
+   **Step 1: Start dev server** (if not running)
+   ```bash
+   # Laravel: Docker containers should be running
+   # Frontend: npm run dev
+   ```
+
+   **Step 2: Capture screenshots with agent-browser CLI**
+   ```bash
+   agent-browser open http://localhost:[port]/[route]
+   agent-browser snapshot -i
+   agent-browser screenshot output.png
+   ```
+   See the `agent-browser` skill for detailed usage.
+
+   **Step 3: Upload using imgup skill**
+   ```bash
+   skill: imgup
+   # Then upload each screenshot:
+   imgup -h pixhost screenshot.png  # pixhost works without API key
+   # Alternative hosts: catbox, imagebin, beeimg
+   ```
+
+   **What to capture:**
+   - **New screens**: Screenshot of the new UI
+   - **Modified screens**: Before AND after screenshots
+   - **Design implementation**: Screenshot showing Figma design match
+
+   **IMPORTANT**: Always include uploaded image URLs in MR description. This provides visual context for reviewers and documents the change.
+
+3. **Push Branch and Create Merge Request**
+
+   ```bash
+   git push -u origin feature-branch-name
+   ```
+
+   After pushing, inform the user with the MR description template below. They can create the MR in GitLab's web UI or using `glab mr create` if available.
+
+   **MR Description Template:**
+
+   ```markdown
+   ## Summary
+   - **Problem:** [from plan's Problem Narrative]
+   - **User Story:** [from plan's User Story]
+   - **What was built:** [concrete description of implementation]
+   - **Key decisions made:** [architectural or design choices]
+
+   ## Success Criteria Status
+   - [x] [criterion 1 from plan] -- delivered by Task N
+   - [x] [criterion 2 from plan] -- delivered by Task N
+   - [ ] [criterion 3 if skipped] -- skipped: [reason]
+
+   ## Testing
+   - Tests added/modified
+   - Manual testing performed
+
+   ## Post-Deploy Monitoring & Validation
+   - **What to monitor/search**
+     - Logs:
+     - Metrics/Dashboards:
+   - **Validation checks (queries/commands)**
+     - `command or query here`
+   - **Expected healthy behavior**
+     - Expected signal(s)
+   - **Failure signal(s) / rollback trigger**
+     - Trigger + immediate action
+   - **Validation window & owner**
+     - Window:
+     - Owner:
+   - **If no operational impact**
+     - `No additional operational monitoring required: <reason>`
+
+   ## Before / After Screenshots
+   | Before | After |
+   |--------|-------|
+   | ![before](URL) | ![after](URL) |
+
+   ## Figma Design
+   [Link if applicable]
+
+   ---
+
+   [![Compound Engineered](https://img.shields.io/badge/Compound-Engineered-6366f1)](https://github.com/aegntic/compound-engineering)
+   ```
+
+   **Save the MR description** to a file the user can copy from:
+   ```bash
+   # Write MR description to a temp file for easy copy-paste
+   cat > /tmp/mr-description.md <<'MRDESC'
+   [filled-in MR description from template above]
+   MRDESC
+   echo "MR description saved to /tmp/mr-description.md"
+   ```
+
+4. **Finalize Execution Session**
+
+   Update the session STATE.md:
+   - Set `status: completed`
+   - Record final summary and completion timestamp
+
+   If the input document has YAML frontmatter with a `status` field, update it to `completed`:
+   ```
+   status: active  →  status: completed
+   ```
+
+5. **Notify User**
+   - Summarize what was completed
+   - Link to PR
+   - Highlight any tasks that were skipped and why
+   - Reference the execution session directory for detailed logs
+   - Note any follow-up work needed
+   - Suggest next steps if applicable
+
+---
+
+## Swarm Mode (Optional)
+
+For complex plans with multiple independent workstreams, enable swarm mode for parallel execution with coordinated agents.
+
+### When to Use Swarm Mode
+
+| Use Swarm Mode when... | Use Standard Mode when... |
+|------------------------|---------------------------|
+| Plan has 5+ independent tasks | Plan is linear/sequential |
+| Multiple specialists needed (review + test + implement) | Single-focus work |
+| Want maximum parallelism | Simpler mental model preferred |
+| Large feature with clear phases | Small feature or bug fix |
+
+### Enabling Swarm Mode
+
+To trigger swarm execution, say:
+
+> "Make a Task list and launch an army of agent swarm subagents to build the plan"
+
+Or explicitly request: "Use swarm mode for this work"
+
+### Swarm Workflow
+
+When swarm mode is enabled, the workflow changes:
+
+1. **Create Team**
+   ```
+   Teammate({ operation: "spawnTeam", team_name: "work-{timestamp}" })
+   ```
+
+2. **Create Task List with Dependencies**
+   - Parse plan into TaskCreate items
+   - Set up blockedBy relationships for sequential dependencies
+   - Independent tasks have no blockers (can run in parallel)
+
+3. **Spawn Specialized Teammates**
+   ```
+   Task({
+     team_name: "work-{timestamp}",
+     name: "implementer",
+     subagent_type: "general-purpose",
+     prompt: "Claim implementation tasks, execute, mark complete",
+     run_in_background: true
+   })
+
+   Task({
+     team_name: "work-{timestamp}",
+     name: "tester",
+     subagent_type: "general-purpose",
+     prompt: "Claim testing tasks, run tests, mark complete",
+     run_in_background: true
+   })
+   ```
+
+4. **Coordinate and Monitor**
+   - Team lead monitors task completion
+   - Spawn additional workers as phases unblock
+   - Handle plan approval if required
+
+5. **Cleanup**
+   ```
+   Teammate({ operation: "requestShutdown", target_agent_id: "implementer" })
+   Teammate({ operation: "requestShutdown", target_agent_id: "tester" })
+   Teammate({ operation: "cleanup" })
+   ```
+
+See the `orchestrating-swarms` skill for detailed swarm patterns and best practices.
+
+**Note:** Swarm mode bypasses the orchestrated execution model (Phase 2). This means no execution session files, no learnings brief accumulation, no STATE.md, and no regression guard. Use swarm mode when speed and parallelism matter more than knowledge compounding. For features where execution learnings are valuable, use the standard orchestrated execution.
+
+---
+
+## Key Principles
+
+### WHY Grounds Everything
+
+- Every subagent knows why its task exists, not just what to build
+- The orchestrator is the guardian of WHY: it extracts, threads, and validates purpose
+- Purpose drift is caught by inline reviews and Phase 3 validation, not just at the end
+- If the combined work doesn't deliver the user story, passing tests don't matter
+
+### Orchestrator is Lean, Subagents are Focused
+
+- The orchestrator decomposes, delegates, records, and routes. It does NOT implement code itself.
+- Each subagent gets only the context it needs. No conversation history pollution.
+- Learnings compound: each task benefits from everything learned in previous tasks.
+
+### Start Fast, Execute Faster
+
+- Get clarification once at the start, then execute
+- Don't wait for perfect understanding - ask questions and move
+- The goal is to **finish the feature**, not create perfect process
+
+### The Plan is Your Guide
+
+- Work documents should reference similar code and patterns
+- Load those references and follow them
+- Don't reinvent - match what exists
+
+### Test As You Go
+
+- Run tests after each change, not at the end
+- Fix failures immediately
+- Regression guard catches breakages early
+- Continuous testing prevents big surprises
+
+### Quality is Built In
+
+- Follow existing patterns
+- Write tests for new code
+- Run linting before pushing
+- Use reviewer agents for complex/risky changes only
+
+### Ship Complete Features
+
+- Mark all tasks completed before moving on
+- Don't leave features 80% done
+- A finished feature that ships beats a perfect feature that doesn't
+
+### Failures are Handled Gracefully
+
+- Escalation path (reframe, ask user, skip, stop) -- not infinite loops
+- Progress is persistent: STATE.md means you can resume after crashes
+- Regression is caught early: previous tests re-run after each task
+- When debugging unexpected errors, use the `systematic-debugging` skill for structured root-cause analysis instead of trial-and-error
+
+## Quality Checklist
+
+Before creating PR, verify:
+
+- [ ] All clarifying questions asked and answered
+- [ ] All tasks in STATE.md marked completed (or explicitly skipped with user approval)
+- [ ] **User story deliverable** -- the combined work enables the stated user outcome
+- [ ] **Success criteria met** -- every plan-level success criterion addressed (or gap documented)
+- [ ] **Architecture intact** -- implementation matches the plan's architectural context
+- [ ] Tests pass (run project's test command)
+- [ ] Regression tests from all completed tasks pass
+- [ ] Linting passes (use linting-agent)
+- [ ] Code follows existing patterns
+- [ ] Figma designs match implementation (if applicable)
+- [ ] Before/after screenshots captured and uploaded (for UI changes)
+- [ ] Commit messages follow conventional format
+- [ ] PR description includes Post-Deploy Monitoring & Validation section (or explicit no-impact rationale)
+- [ ] PR description includes summary, testing notes, and screenshots
+- [ ] PR description includes Compound Engineered badge
+- [ ] Execution session files saved in `docs/execution-sessions/`
+
+## When to Use Reviewer Agents
+
+**Don't use by default.** Use reviewer agents only when:
+
+- Large refactor affecting many files (10+)
+- Security-sensitive changes (authentication, permissions, data access)
+- Performance-critical code paths
+- Complex algorithms or business logic
+- User explicitly requests thorough review
+
+For most features: tests + linting + following patterns is sufficient.
+
+## Common Pitfalls to Avoid
+
+- **Losing the WHY** - Subagents build what's specified but miss the intent. Always pass WHY context.
+- **Purpose drift** - Tasks individually pass but combined output doesn't deliver the user story. Validate at Phase 3.
+- **Analysis paralysis** - Don't overthink, read the plan and execute
+- **Skipping clarifying questions** - Ask now, not after building wrong thing
+- **Ignoring plan references** - The plan has links for a reason
+- **Testing at the end** - Test continuously or suffer later
+- **Orchestrator doing implementation** - Delegate to subagents, don't implement inline
+- **Skipping regression checks** - A passing task that breaks previous work is not progress
+- **Losing session state** - Always write to STATE.md before and after each task
+- **Dumping all session files into subagent context** - Use the learnings brief, filtered by domain
+- **Over-reviewing simple changes** - Save reviewer agents for complex work
+- **80% done syndrome** - Finish the feature, don't move on early
