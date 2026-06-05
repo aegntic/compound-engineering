@@ -1,38 +1,65 @@
 # Compound Engineering
 
-Portable AI-powered development tools for any coding agent. 29 specialized agents, 32 commands, and 24 skills for Claude Code, GitHub Copilot, and OpenCode.
+Portable AI-powered development tools for any coding agent.
 
-**Philosophy:** Each unit of engineering work should make subsequent units of work easier — not harder.
+29 specialized agents, 32 commands, and 24 skills designed around one principle: **each unit of engineering work should make subsequent units of work easier — not harder.**
 
-## Install
+## Quick Start
 
 ```bash
-# Claude Code
+# Claude Code — install as plugin
 claude install-plugin https://github.com/aegntic/compound-engineering
 
-# Or clone directly
-git clone https://github.com/aegntic/compound-engineering.git ~/.claude/skills/compound-engineering
+# Or clone directly into your skills directory
+git clone https://github.com/aegntic/compound-engineering.git \
+  ~/.claude/skills/compound-engineering
+
+# Configure for your stack (detects languages, frameworks, picks reviewers)
+/setup
 ```
 
-## Structure
+## The Workflow
+
+Compound Engineering provides a progression of workflows that build on each other. Each phase produces artifacts that feed the next, so nothing is lost and context compounds.
 
 ```
-compound-engineering/
-├── agents/           # 29 specialized AI agents
-│   ├── design/       # 3 agents (design review, iteration, Figma sync)
-│   ├── research/     # 8 agents (best practices, docs, git history, issues)
-│   ├── review/       # 17 agents (code review, security, architecture, language-specific)
-│   └── workflow/     # 3 agents (bug reproduction, PR comments, spec analysis)
-├── commands/         # 32 slash commands
-│   └── workflows/    # Core workflows (compound, plan, review, work, brainstorm, ideate)
-├── skills/           # 24 skills
-├── platforms/        # Platform-specific hooks
-└── plugin.yaml       # Plugin metadata
+/constitution → /ideate → /brainstorm → /plan → /deepen-plan → /work → /review → /compound
+                                                                                    ↑
+                                                    knowledge feeds back ─────────────┘
+```
+
+| Phase | Command | What it does |
+|-------|---------|-------------|
+| **Define** | `/workflows:constitution` | Establish durable project principles in `docs/constitution.md` |
+| **Discover** | `/workflows:ideate` | Scan the repo, generate improvement ideas, rank them |
+| **Explore** | `/workflows:brainstorm` | Establish WHY and WHAT — problem narrative, user story, architectural context |
+| **Plan** | `/workflows:plan` | Structured implementation plan with tasks, dependencies, and evidence contracts |
+| **Deepen** | `/deepen-plan` | Expand thin spots in the plan before execution begins |
+| **Execute** | `/workflows:work` | TDD-driven execution with red-green-refactor evidence capture |
+| **Review** | `/workflows:review` | Multi-agent code review using your configured reviewers |
+| **Compound** | `/workflows:compound` | Document the solved problem as searchable knowledge in `docs/solutions/` |
+
+### One-Shot Autonomous Mode
+
+For features that don't need exploration — go straight to shipping:
+
+```bash
+/lfg add user authentication with JWT
+```
+
+This chains the entire pipeline automatically: plan → deepen → work → review → resolve → test → video → done.
+
+For parallel swarm execution:
+
+```bash
+/slfg add user authentication with JWT
 ```
 
 ## Agents
 
 ### Design (3)
+
+Review and iterate on visual implementation.
 
 | Agent | Purpose |
 |-------|---------|
@@ -41,6 +68,8 @@ compound-engineering/
 | `figma-design-sync` | Detect and fix visual differences between implementation and Figma |
 
 ### Research (8)
+
+Gather knowledge before and during implementation.
 
 | Agent | Purpose |
 |-------|---------|
@@ -52,6 +81,8 @@ compound-engineering/
 | `repo-research-analyst` | Research repository structure and conventions |
 
 ### Review (17)
+
+Language-specific and cross-cutting code review.
 
 | Agent | Purpose |
 |-------|---------|
@@ -75,32 +106,53 @@ compound-engineering/
 
 ### Workflow (3)
 
+Automate development operations.
+
 | Agent | Purpose |
 |-------|---------|
 | `bug-reproduction-validator` | Systematically reproduce and validate bug reports |
 | `pr-comment-resolver` | Address PR review comments with requested changes |
 | `spec-flow-analyzer` | Analyze specs for user flow completeness |
 
-## Key Commands
+## Commands
+
+### Workflows
+
+The core progression — each produces artifacts that feed the next.
 
 | Command | Description |
 |---------|-------------|
-| `/workflows:compound` | Document solved problems to compound team knowledge |
-| `/workflows:plan` | Structured implementation planning |
-| `/workflows:review` | Multi-agent code review |
-| `/workflows:work` | Execute a planned work session |
-| `/workflows:brainstorm` | Structured brainstorming |
-| `/workflows:ideate` | Generate and evaluate improvement ideas |
-| `/workflows:architecture` | Architecture review and improvement |
 | `/workflows:constitution` | Define project engineering principles |
-| `/lfg` | Start accelerated development |
-| `/ralph-loop` | Automated improvement loop |
+| `/workflows:ideate` | Generate and rank improvement ideas |
+| `/workflows:brainstorm` | Explore WHY and WHAT before planning |
+| `/workflows:plan` | Structured implementation planning |
+| `/workflows:architecture` | Architecture review and improvement |
+| `/workflows:work` | TDD-driven execution with evidence capture |
+| `/workflows:review` | Multi-agent code review |
+| `/workflows:compound` | Document solved problems as searchable knowledge |
+| `/workflows:compound-refresh` | Refresh stale learnings against current codebase |
+
+### Operations
+
+| Command | Description |
+|---------|-------------|
+| `/lfg` | Full autonomous pipeline: plan → work → review → ship |
+| `/slfg` | Same as `/lfg` but with parallel swarm execution |
+| `/ralph-loop` | Red-green-refactor loop with completion promise |
+| `/cancel-ralph` | Cancel an active ralph loop |
 | `/triage` | Triage GitHub issues |
 | `/reproduce-bug` | Systematic bug reproduction |
 | `/resolve_parallel` | Resolve PR comments in parallel |
+| `/resolve_todo_parallel` | Resolve TODO items in parallel |
 | `/test-browser` | Browser-based testing |
 | `/changelog` | Generate changelog |
-| `/deepen-plan` | Deepen an existing plan |
+| `/deepen-plan` | Expand thin spots in a plan |
+| `/deploy-docs` | Deploy documentation site |
+| `/feature-video` | Record feature walkthrough video |
+| `/heal-skill` | Repair a broken skill |
+| `/create-agent-skill` | Create a new agent or skill |
+| `/report-bug` | Report a bug with structured context |
+| `/generate_command` | Generate a new command |
 
 ## Skills
 
@@ -113,7 +165,7 @@ compound-engineering/
 | `caveman` | Ultra-compressed communication (~75% token reduction) |
 | `compound-docs` | Capture solved problems as searchable documentation |
 | `compound-refresh` | Refresh stale learnings against current codebase |
-| `create-agent-skills` | Expert guidance for authoring Claude Code skills |
+| `create-agent-skills` | Expert guidance for authoring coding agent skills |
 | `document-review` | Refine brainstorm/plan documents |
 | `file-todos` | File-based todo tracking system |
 | `finishing-branch` | Verify quality and clean up feature branches |
@@ -131,22 +183,88 @@ compound-engineering/
 | `systematic-debugging` | Structured 4-phase debugging methodology |
 | `ubiquitous-language` | DDD-style ubiquitous language glossary extraction |
 
+## Project Structure
+
+```
+compound-engineering/
+├── agents/                # 29 specialized AI agents
+│   ├── design/            # Visual design review
+│   ├── research/          # Knowledge gathering
+│   ├── review/            # Code review (language + cross-cutting)
+│   └── workflow/          # Development operations
+├── commands/              # 32 slash commands
+│   └── workflows/         # Core workflow orchestrations
+├── skills/                # 24 skills (references, templates, scripts)
+├── platforms/             # Platform-specific hooks
+└── plugin.yaml            # Plugin metadata
+```
+
 ## Docs Convention
 
-Workflows write output to `{project_root}/docs/`:
+Workflows produce structured output in your project's `docs/` directory:
 
 ```
 docs/
-├── ideation/              # Ideation artifacts
-├── plans/                 # Implementation plans
-├── brainstorms/           # Brainstorm documents
+├── constitution.md        # Project principles (keep in git)
 ├── solutions/             # Compounded learnings (keep in git)
-└── execution-sessions/    # Work session logs
+├── ideation/              # Ideation artifacts (gitignore)
+├── plans/                 # Implementation plans (gitignore)
+├── brainstorms/           # Brainstorm documents (gitignore)
+└── execution-sessions/    # Work session logs (gitignore)
 ```
 
-## MCP Server
+Solutions are institutional memory — the compounding payoff. Everything else is ephemeral scaffolding.
 
-Includes Context7 MCP server integration for enhanced documentation lookup.
+## Configuration
+
+Run `/setup` to create `compound-engineering.local.md` in your project root. It auto-detects your stack and selects the right language reviewers for `/workflows:review`.
+
+## MCP Integration
+
+Includes Context7 MCP server for enhanced documentation lookup during research and review.
+
+## Adding Components
+
+### New Agent
+
+Create `agents/{category}/{name}.md`:
+
+```markdown
+---
+name: my-reviewer
+description: Reviews code for X, Y, Z
+model: claude-sonnet-4.6
+---
+
+## Mission
+...
+
+## Focus Areas
+...
+
+## Report
+...
+```
+
+### New Command
+
+Create `commands/{name}.md`:
+
+```markdown
+---
+name: my-command
+description: What this command does
+argument-hint: '[optional arguments]'
+---
+
+# Command Title
+
+Instructions...
+```
+
+### New Skill
+
+Create `skills/{name}/SKILL.md` plus optional `references/`, `scripts/`, or `templates/` subdirectories.
 
 ## License
 
