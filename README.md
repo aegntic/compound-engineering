@@ -1,10 +1,28 @@
 # Compound Engineering
 
-Portable AI-powered development tools for any coding agent.
+> Portable AI-powered development tools for any coding agent.
 
-29 specialized agents, 32 commands, and 24 skills designed around one principle: **each unit of engineering work should make subsequent units of work easier — not harder.**
+**[Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [GitHub Copilot](https://github.com/features/copilot) · [OpenCode](https://github.com/opencode-ai/opencode)**
 
-## Quick Start
+29 specialized agents · 32 commands · 24 skills · MIT License
+
+Each unit of engineering work should make subsequent units of work easier — not harder.
+
+---
+
+## Why Compound Engineering?
+
+| Problem | Solution |
+|---------|----------|
+| AI agents solve the same problem twice | `/workflows:compound` documents every solved problem as searchable knowledge |
+| Code review is shallow and generic | 17 specialized reviewers per language and domain (Rust ownership, TypeScript types, OWASP security) |
+| Planning disconnected from execution | Pipeline produces artifacts that feed the next phase — nothing is lost |
+| One-shot features need manual handoffs | `/lfg` chains plan → deepen → work → review → ship autonomously |
+| Knowledge leaves with the developer | `docs/solutions/` compounds institutional memory in git |
+
+## Install
+
+For **Claude Code**, **Copilot CLI**, **OpenCode**, or any agent that supports skills/commands.
 
 ```bash
 # Claude Code — install as plugin
@@ -266,6 +284,33 @@ Instructions...
 
 Create `skills/{name}/SKILL.md` plus optional `references/`, `scripts/`, or `templates/` subdirectories.
 
+## Compatibility
+
+| Platform | Status | Install |
+|----------|--------|---------|
+| Claude Code | Supported | `claude install-plugin` |
+| GitHub Copilot | Supported | Copy agents + skills |
+| OpenCode | Supported | Copy agents + skills |
+| Any MCP-compatible agent | Skills are plain markdown | Copy what you need |
+
+## Languages & Frameworks
+
+Built-in reviewers for: **Rust** · **TypeScript** · **Python** · **Laravel/PHP** · **Vue/Nuxt** · **NestJS** · **Frontend (React, vanilla)** · **SQL/Database migrations**
+
+## Contributing
+
+1. Fork the repo
+2. Create your branch (`git checkout -b feat/my-agent`)
+3. Add agent/command/skill with frontmatter
+4. Update README counts
+5. Open a PR
+
+See `.github/ISSUE_TEMPLATE/` for agent and feature request templates.
+
 ## License
 
-MIT
+MIT — use freely in personal and commercial projects.
+
+---
+
+<!-- SEO: AI coding agent tools, Claude Code plugin, Copilot skills, OpenCode agents, compound engineering, TDD workflow, code review automation, AI-powered development, knowledge compounding, red green refactor, autonomous coding, AI agent orchestration, multi-agent code review, language-specific code reviewers, Rust TypeScript Python Laravel Vue NestJS, OWASP security audit, deployment verification, schema drift detection, brainstorming workflow, implementation planning -->
