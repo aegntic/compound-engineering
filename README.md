@@ -4,7 +4,7 @@
 
 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [GitHub Copilot](https://github.com/features/copilot) · [OpenCode](https://github.com/opencode-ai/opencode)**
 
-29 specialized agents · 32 commands · 24 skills · MIT License
+29 specialized agents · 32 commands · 27 skills · MIT License
 
 Each unit of engineering work should make subsequent units of work easier — not harder.
 
@@ -182,6 +182,7 @@ The core progression — each produces artifacts that feed the next.
 | `brainstorming` | Explore user intent before implementing |
 | `caveman` | Ultra-compressed communication (~75% token reduction) |
 | `compound-docs` | Capture solved problems as searchable documentation |
+| `compounding-operating-system` | Evaluate strategic decisions for long-term compounding and survivability |
 | `compound-refresh` | Refresh stale learnings against current codebase |
 | `create-agent-skills` | Expert guidance for authoring coding agent skills |
 | `document-review` | Refine brainstorm/plan documents |
@@ -212,7 +213,7 @@ compound-engineering/
 │   └── workflow/          # Development operations
 ├── commands/              # 32 slash commands
 │   └── workflows/         # Core workflow orchestrations
-├── skills/                # 24 skills (references, templates, scripts)
+├── skills/                # 27 skills (references, templates, scripts)
 ├── platforms/             # Platform-specific hooks
 └── plugin.yaml            # Plugin metadata
 ```
