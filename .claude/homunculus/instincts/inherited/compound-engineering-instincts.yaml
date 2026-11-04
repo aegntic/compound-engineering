@@ -1,0 +1,320 @@
+# Instincts generated from https://github.com/aegntic/compound-engineering
+# Generated: 2026-06-05T17:03:11.818Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: compound-engineering-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/aegntic/compound-engineering
+---
+
+# Compound Engineering Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat(skills): add compound-engineering implementation reference
+
+---
+id: compound-engineering-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/aegntic/compound-engineering
+---
+
+# Compound Engineering Commit Length
+
+## Action
+
+Write moderate-length commit messages (~63 characters)
+
+## Evidence
+
+- Average commit message length: 63 chars
+- Based on 1 commits
+
+---
+id: compound-engineering-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/aegntic/compound-engineering
+---
+
+# Compound Engineering Naming Files
+
+## Action
+
+Use kebab-case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: kebab-case
+
+---
+id: compound-engineering-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/aegntic/compound-engineering
+---
+
+# Compound Engineering Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: compound-engineering-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/aegntic/compound-engineering
+---
+
+# Compound Engineering Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: compound-engineering-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/aegntic/compound-engineering
+---
+
+# Compound Engineering Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: compound-engineering-instinct-file-naming
+trigger: "When creating a new file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct File Naming
+
+## Action
+
+Name the file using kebab-case
+
+## Evidence
+
+- Pattern in namingConventions.files
+
+---
+id: compound-engineering-instinct-function-naming
+trigger: "When defining a function"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: compound-engineering-instinct-class-naming
+trigger: "When defining a class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: compound-engineering-instinct-constant-naming
+trigger: "When declaring a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in namingConventions.constants
+
+---
+id: compound-engineering-instinct-import-style
+trigger: "When importing modules"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Import Style
+
+## Action
+
+Use relative import paths
+
+## Evidence
+
+- Pattern in importStyle
+
+---
+id: compound-engineering-instinct-export-style
+trigger: "When exporting modules or functions"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: compound-engineering-instinct-git-commit-prefix
+trigger: "When writing a commit message for a new feature"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Git Commit Prefix
+
+## Action
+
+Prefix the commit message with 'feat'
+
+## Evidence
+
+- Pattern in commits.prefixes
+- Seen in commit: feat(skills): add compound-engineering implementation reference
+
+---
+id: compound-engineering-instinct-git-commit-format
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Git Commit Format
+
+## Action
+
+Use the conventional commit format: <type>(<scope>): <description>
+
+## Evidence
+
+- Pattern in commits.type
+- Seen in commit: feat(skills): add compound-engineering implementation reference
+
+---
+id: compound-engineering-instinct-test-location
+trigger: "When adding or updating tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Test Location
+
+## Action
+
+Place test files in a separate directory from source files
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation
+
+---
+id: compound-engineering-instinct-skills-folder
+trigger: "When adding new domain-specific logic"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: aegntic/compound-engineering
+---
+
+# Compound Engineering Instinct Skills Folder
+
+## Action
+
+Place the implementation in the 'skills' folder
+
+## Evidence
+
+- Pattern in architecture.folderStructure.commonFolders
+- Seen in commit: feat(skills): add compound-engineering implementation reference
+
