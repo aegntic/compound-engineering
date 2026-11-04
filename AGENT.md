@@ -1,6 +1,6 @@
 # Compound Engineering
 
-Portable AI-powered development tools. 29 agents, 32 commands, 27 skills.
+Portable AI-powered development tools. 29 agents, 32 commands, 28 skills.
 
 ## Philosophy
 

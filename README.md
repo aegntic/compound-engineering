@@ -4,7 +4,7 @@
 
 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [GitHub Copilot](https://github.com/features/copilot) · [OpenCode](https://github.com/opencode-ai/opencode)**
 
-29 specialized agents · 32 commands · 27 skills · MIT License
+29 specialized agents · 32 commands · 28 skills · MIT License
 
 Each unit of engineering work should make subsequent units of work easier — not harder.
 
@@ -192,6 +192,7 @@ The core progression — each produces artifacts that feed the next.
 | `gemini-imagegen` | Image generation via Gemini API |
 | `git-worktree` | Git worktree management for parallel development |
 | `grill-me` | Relentlessly interview user about a plan or design |
+| `i-have-adhd` | [ADHD-friendly, action-first responses](https://github.com/ayghri/i-have-adhd) |
 | `ideate` | Generate and evaluate grounded improvement ideas |
 | `laravel-conventions` | Modern Laravel 11+ / PHP 8.3+ coding standards |
 | `orchestrating-swarms` | Multi-agent swarm orchestration |
@@ -213,7 +214,7 @@ compound-engineering/
 │   └── workflow/          # Development operations
 ├── commands/              # 32 slash commands
 │   └── workflows/         # Core workflow orchestrations
-├── skills/                # 27 skills (references, templates, scripts)
+├── skills/                # 28 skills (references, templates, scripts)
 ├── platforms/             # Platform-specific hooks
 └── plugin.yaml            # Plugin metadata
 ```
