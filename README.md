@@ -4,7 +4,7 @@
 
 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [GitHub Copilot](https://github.com/features/copilot) · [OpenCode](https://github.com/opencode-ai/opencode)**
 
-29 specialized agents · 32 commands · 28 skills · MIT License
+29 specialized agents · 26 commands · 28 skills · MIT License
 
 Each unit of engineering work should make subsequent units of work easier — not harder.
 
@@ -19,6 +19,15 @@ Each unit of engineering work should make subsequent units of work easier — no
 | Planning disconnected from execution | Pipeline produces artifacts that feed the next phase — nothing is lost |
 | One-shot features need manual handoffs | `/lfg` chains plan → deepen → work → review → ship autonomously |
 | Knowledge leaves with the developer | `docs/solutions/` compounds institutional memory in git |
+
+## At a Glance
+
+```mermaid
+pie title Included components
+    "Agents — 29" : 29
+    "Commands — 26" : 26
+    "Skills — 28" : 28
+```
 
 ## Install
 
@@ -40,10 +49,21 @@ git clone https://github.com/aegntic/compound-engineering.git \
 
 Compound Engineering provides a progression of workflows that build on each other. Each phase produces artifacts that feed the next, so nothing is lost and context compounds.
 
-```
-/constitution → /ideate → /brainstorm → /plan → /deepen-plan → /work → /review → /compound
-                                                                                    ↑
-                                                    knowledge feeds back ─────────────┘
+```mermaid
+flowchart LR
+    constitution["Define<br/>/workflows:constitution"]
+    ideate["Discover<br/>/workflows:ideate"]
+    brainstorm["Explore<br/>/workflows:brainstorm"]
+    plan["Plan<br/>/workflows:plan"]
+    deepen["Deepen<br/>/deepen-plan"]
+    work["Execute<br/>/workflows:work"]
+    review["Review<br/>/workflows:review"]
+    compound["Compound<br/>/workflows:compound"]
+    learnings[("docs/solutions/<br/>searchable learnings")]
+
+    constitution --> ideate --> brainstorm --> plan --> deepen --> work --> review --> compound
+    compound -->|documents| learnings
+    learnings -. informs future work .-> plan
 ```
 
 | Phase | Command | What it does |
@@ -212,8 +232,8 @@ compound-engineering/
 │   ├── research/          # Knowledge gathering
 │   ├── review/            # Code review (language + cross-cutting)
 │   └── workflow/          # Development operations
-├── commands/              # 32 slash commands
-│   └── workflows/         # Core workflow orchestrations
+├── commands/              # 26 invocable slash commands
+│   └── workflows/         # Workflow orchestrations and reference templates
 ├── skills/                # 28 skills (references, templates, scripts)
 ├── platforms/             # Platform-specific hooks
 └── plugin.yaml            # Plugin metadata

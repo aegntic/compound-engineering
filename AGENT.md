@@ -1,6 +1,6 @@
 # Compound Engineering
 
-Portable AI-powered development tools. 29 agents, 32 commands, 28 skills.
+Portable AI-powered development tools. 29 agents, 26 commands, 28 skills.
 
 ## Philosophy
 
@@ -42,6 +42,6 @@ Workflows write to `docs/`:
 
 ```bash
 find agents -name '*.md' | wc -l     # Should match README count
-find commands -name '*.md' | wc -l    # Should match README count
+find commands -type f -name '*.md' ! -path 'commands/workflows/references/*' | wc -l  # Should match README count
 find skills -mindepth 1 -maxdepth 1 -type d | wc -l  # Should match README count
 ```
